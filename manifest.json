@@ -1,0 +1,16 @@
+{
+  "name": "Signal — a feed that ends",
+  "short_name": "Signal",
+  "description": "A finite daily feed: sport, tech, science, cars and music. It ends when the day's news ends.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08080B",
+  "theme_color": "#08080B",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
