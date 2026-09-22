@@ -840,6 +840,7 @@
   let liveItems = [], fetchedAt = null, fetching = false;
   let channels = [];        // YouTube artist channels
   let yt = { checked:false, connected:false, items:[], msg:"" };
+  let sp = { checked:false, connected:false, followed:[], top:[], releases:[], msg:"" };
   let releases = [];        // live uploads from those channels
   const status = {};   // feed id -> {state, n}
 
@@ -1127,6 +1128,22 @@
     if(added) refresh(true);
   }
 
+  async function spCheck(){
+    try{
+      const r = await fetch("/.netlify/functions/sp-data", { cache:"no-store" });
+      if(!r.ok){ sp = { checked:true, connected:false, followed:[], top:[], releases:[], msg:"server not available" }; return; }
+      const j = await r.json();
+      sp = { checked:true, connected:!!j.connected, followed:j.followed || [], top:j.top || [], releases:j.releases || [],
+             msg: j.expired ? "sign-in expired — connect again" : (j.error || "") };
+    }catch(e){ sp = { checked:true, connected:false, followed:[], top:[], releases:[], msg:"server not available" }; }
+  }
+  async function spDisconnect(){
+    try{ await fetch("/.netlify/functions/sp-data?logout=1", { cache:"no-store" }); }catch(e){}
+    sp = { checked:true, connected:false, followed:[], top:[], releases:[], msg:"" };
+    toast("Disconnected");
+    render(true);
+  }
+
   /* ---------------- diagnostics ---------------- */
   let diag = null;
   async function runDiagnostics(){
@@ -1318,51 +1335,40 @@
   }
 
   function musicView(){
-    const all = [...releases, ...RELEASES].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 40);
-    let html = `<div class="day"><h2>New from your artists</h2><span class="rule"></span><span class="cnt">${all.length} ${all.length===1?"release":"releases"}</span></div>`;
-    html += all.length ? all.map(releaseCard).join("")
-      : `<div class="panel" style="--c:var(--music)"><h4>Nothing here yet</h4>
-         <p>Add an artist's YouTube channel below and their newest uploads land here automatically, with artwork, every time you open the app.</p></div>`;
+    const followedRel = (sp.releases || []).filter(r => r.source === "followed");
+    const topRel = (sp.releases || []).filter(r => r.source === "top");
+    const chRel = releases; // uploads from manually-added YouTube channels
 
-    const rows = channels.map((c,i) => {
-      const s = c.on === false ? { state:"off" } : (status[c.id] || { state:"wait" });
-      const lbl = s.state === "ok" ? `${s.n} recent` : s.state === "err" ? "failed" : s.state === "off" ? "off" : "checking";
-      return `<div class="frow" style="--c:var(--music)">
-        <span class="fd"></span>
-        <span class="fn"><b>${esc(c.label)}</b><span>${esc(s.state === "err" && s.why ? s.why : "youtube channel")}</span></span>
-        <span class="st ${s.state}">${lbl}</span>
-        <button class="fx" data-ctog="${i}" aria-label="Toggle">${c.on === false ? "○" : "●"}</button>
-        <button class="fx" data-cdel="${i}" aria-label="Remove">×</button>
-      </div>`;
-    }).join("");
+    function section(title, list, emptyMsg){
+      let h = `<div class="day"><h2>${esc(title)}</h2><span class="rule"></span><span class="cnt">${list.length}</span></div>`;
+      h += list.length ? list.map(releaseCard).join("")
+        : (emptyMsg ? `<div class="panel" style="--c:var(--music)"><p>${esc(emptyMsg)}</p></div>` : "");
+      return h;
+    }
 
-    const ytRows = yt.connected && yt.items.length
-      ? yt.items.slice(0, 60).map(s => {
-          const have = channels.some(c => c.url.includes(s.channelId));
-          return `<div class="frow" style="--c:var(--music)">
-            <span class="fd"></span>
-            <span class="fn"><b>${esc(s.title)}</b><span>${have ? "added" : "subscribed"}</span></span>
-            ${have ? `<span class="st ok">in feed</span>`
-                   : `<button class="btn" data-ytadd="${esc(s.channelId)}" style="padding:5px 11px;font-size:11.5px">Add</button>`}
-          </div>`;
-        }).join("")
-      : "";
+    let html = "";
+    html += section("From artists you follow", followedRel,
+      sp.connected ? "Nothing new from these in the last 45 days." : "Connect Spotify below to see this.");
+    html += section("From your top artists", topRel,
+      sp.connected ? "Nothing new from your most-played artists recently." : "Connect Spotify below to see this.");
+    if(chRel.length || channels.length) html += section("From your YouTube channels", chRel,
+      "Add a channel below and new uploads land here.");
+    if(RELEASES.length) html += section("Curated picks", RELEASES, "");
 
-    html += `<div class="day"><h2>Your YouTube account</h2><span class="rule"></span><span class="cnt">${yt.connected ? yt.items.length + " subscriptions" : "not connected"}</span></div>
+    html += `<div class="day"><h2>Your Spotify account</h2><span class="rule"></span><span class="cnt">${sp.connected ? (sp.followed.length + " followed, " + sp.top.length + " top") : "not connected"}</span></div>
       <div class="panel" style="--c:var(--music)">
-        ${yt.connected ? `
+        ${sp.connected ? `
           <h4>Connected</h4>
-          <p>These are the channels you subscribe to. Add the artists and their uploads join the feed. Once added they keep working as plain feeds — no sign-in needed after this.</p>
+          <p>Reading ${sp.followed.length} followed artists and your top ${sp.top.length} most-played, refreshed every time you open this tab.</p>
           <div class="row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <button class="btn" id="ytAll" style="color:var(--tx);border-color:#3A3A48">Add all ${yt.items.length}</button>
-            <button class="btn" id="ytOut">Disconnect</button>
+            <button class="btn" id="spRefresh" style="color:var(--tx);border-color:#3A3A48">Refresh now</button>
+            <button class="btn" id="spOut">Disconnect</button>
           </div>
-          ${ytRows ? `<div style="margin-top:12px;max-height:420px;overflow-y:auto">${ytRows}</div>` : ""}
         ` : `
-          <h4>Import your subscriptions</h4>
-          <p>${yt.msg ? esc(yt.msg) + ". " : ""}Sign in with Google once and Signal reads which channels you subscribe to, so you don't have to paste them by hand. It only ever reads — nothing is posted, and the connection is used once to copy the list across.</p>
+          <h4>Connect your listening</h4>
+          <p>${sp.msg ? esc(sp.msg) + ". " : ""}Sign in with Spotify once and Signal reads your followed and top artists, then surfaces their new releases here — shown as two separate lists above. Read-only: nothing is posted or changed on your account.</p>
           <div class="row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <a class="btn" href="/.netlify/functions/yt-auth" style="color:var(--tx);border-color:#3A3A48">${ICON.play} Connect YouTube</a>
+            <a class="btn" href="/.netlify/functions/sp-auth" style="color:var(--tx);border-color:#3A3A48">${ICON.play} Connect Spotify</a>
           </div>
         `}
       </div>`;
@@ -1375,7 +1381,17 @@
           <input id="cInput" type="text" placeholder="@artistname or youtube.com/@artistname" autocomplete="off" spellcheck="false">
           <button id="cAdd">Add</button>
         </div>
-        ${rows ? `<div style="margin-top:12px">${rows}</div>` : ""}
+        ${channels.length ? `<div style="margin-top:12px">${channels.map((c,i) => {
+          const s = c.on === false ? { state:"off" } : (status[c.id] || { state:"wait" });
+          const lbl = s.state === "ok" ? `${s.n} recent` : s.state === "err" ? "failed" : s.state === "off" ? "off" : "checking";
+          return `<div class="frow" style="--c:var(--music)">
+            <span class="fd"></span>
+            <span class="fn"><b>${esc(c.label)}</b><span>${esc(s.state === "err" && s.why ? s.why : "youtube channel")}</span></span>
+            <span class="st ${s.state}">${lbl}</span>
+            <button class="fx" data-ctog="${i}" aria-label="Toggle">${c.on === false ? "○" : "●"}</button>
+            <button class="fx" data-cdel="${i}" aria-label="Remove">×</button>
+          </div>`;
+        }).join("")}</div>` : ""}
       </div>
       <div class="day"><h2>Names for the curated pass</h2><span class="rule"></span><span class="cnt">${artists.length}</span></div>
       <div class="panel" style="--c:var(--music)">
@@ -1389,6 +1405,7 @@
           ? artists.map(a => `<span class="atag">${esc(a)}<button data-rm="${esc(a)}" aria-label="Remove ${esc(a)}">×</button></span>`).join("")
           : `<span style="font-size:12.5px;color:var(--tx-3)">Nothing yet.</span>`}</div>
       </div>`;
+
     return html;
   }
 
@@ -1571,10 +1588,8 @@
     if(e.target.id === "resetFeeds"){ feeds = DEFAULT_FEEDS.map(f => ({ ...f, on:true })); ls.set(K.feeds, feeds); render(true); refresh(true); return; }
     if(e.target.id === "fAdd"){ addFeed(); return; }
     if(e.target.id === "cAdd"){ addChannel(); return; }
-    if(e.target.id === "ytAll"){ ytImport(null); return; }
-    if(e.target.id === "ytOut"){ ytDisconnect(); return; }
-    const ytadd = e.target.closest("[data-ytadd]");
-    if(ytadd){ ytImport(ytadd.dataset.ytadd); return; }
+    if(e.target.id === "spRefresh"){ spCheck().then(() => render(true)); return; }
+    if(e.target.id === "spOut"){ spDisconnect(); return; }
     const ctog = e.target.closest("[data-ctog]");
     if(ctog){ const i = +ctog.dataset.ctog; channels[i].on = channels[i].on === false; ls.set(K.chan, channels); render(true); return; }
     const cdel = e.target.closest("[data-cdel]");
@@ -1707,13 +1722,13 @@
   refresh(false);
 
   if(LIVE_ENABLED){
-    const q = new URLSearchParams(location.search).get("yt");
+    const q = new URLSearchParams(location.search).get("sp");
     if(q){
       history.replaceState(null, "", location.pathname);
       if(q === "ok") tab = "music";
-      else toast("YouTube sign-in failed: " + q);
+      else toast("Spotify sign-in failed: " + q);
     }
-    ytCheck().then(() => { if(yt.connected || tab === "music") render(true); });
+    spCheck().then(() => { if(sp.connected || tab === "music") render(true); });
   }
   if("serviceWorker" in navigator){
     window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
