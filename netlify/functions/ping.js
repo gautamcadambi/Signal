@@ -5,7 +5,7 @@ exports.handler = async () => ({
   body: JSON.stringify({
     ok: true,
     node: process.version,
-    oauth: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    oauth: Boolean((process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) || (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)),
     time: new Date().toISOString()
   })
 });
