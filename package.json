@@ -1,7 +1,0 @@
-{
-  "name": "signal-feed",
-  "version": "1.0.0",
-  "private": true,
-  "description": "A finite daily news and music feed.",
-  "scripts": { "build": "echo 'static site — nothing to build'" }
-}
