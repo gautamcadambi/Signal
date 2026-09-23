@@ -307,6 +307,7 @@
   ];
   let bestRelay = null;     // once one works, try it first for everything else
   let customRelay = "";     // optional user-supplied proxy, pattern contains {url}
+  const DEFAULT_RELAY = "https://signal-ten-eosin.vercel.app/api/feed?url={url}";
   function relayList(){
     const base = customRelay && customRelay.includes("{url}")
       ? [{ name:"custom", build:u => customRelay.replace("{url}", encodeURIComponent(u)) }, ...RELAYS]
@@ -888,7 +889,7 @@
     const cache = ls.get(K.cache, null);
     if(cache && Array.isArray(cache.items)){ liveItems = cache.items; fetchedAt = cache.at; }
     channels = ls.get(K.chan, []) || [];
-    customRelay = ls.get(K.relay, "") || "";
+    customRelay = ls.get(K.relay, DEFAULT_RELAY) || DEFAULT_RELAY;
     releases = ls.get(K.mcache, []) || [];
   }
 
