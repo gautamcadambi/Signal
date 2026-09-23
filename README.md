@@ -3,70 +3,46 @@
 A finite daily feed: sport, tech, science, cars and music. It ends when the day's
 news ends.
 
-## Important: this site needs a real deploy, not drag-and-drop
+## Deploying on GitHub Pages
 
-Netlify's drag-and-drop deploys do not run a build, so the `netlify/functions`
-folder is ignored and the site has no server side. Without it the app must borrow
-a public relay to read feeds, and those are often blocked. Deploy one of the two
-ways below instead.
+1. Create a repository and push everything in this folder to it (or upload via
+   GitHub's web uploader — drag the whole folder in one go, not files picked
+   from inside it, or the folder structure gets flattened).
+2. In the repo: **Settings → Pages → Source → Deploy from a branch**.
+   Branch: `main`, folder: `/ (root)`. Save.
+3. GitHub gives you a URL like `https://yourname.github.io/reponame/` within
+   a minute or two.
+4. Open that URL on your phone, then Add to Home Screen the same way as before.
 
-### Option A — GitHub (recommended, updates itself)
+## What changed from the Netlify version
 
-1. Create a new repository at github.com/new. Name it `signal`. Keep it private.
-2. Upload every file in this folder to it (GitHub's web uploader accepts a drag
-   of the whole folder — include `netlify/functions`).
-3. In Netlify: Add new site, Import an existing project, pick the repo.
-   Build command: leave blank. Publish directory: `.`
-4. Deploy. Future updates: replace `index.html` in GitHub and Netlify redeploys
-   on its own.
+This build has no server-side component at all — GitHub Pages only serves
+static files, so anything that needed a real backend (Spotify sign-in, a
+private RSS relay) has been removed.
 
-### Option B — Netlify CLI (one command, needs Node on your computer)
+**What still works:**
+- The curated (hand-written) edition, unchanged.
+- Live news, pulled through public CORS-relay services directly from the
+  browser. These are free third-party services and can be slower or flakier
+  than a real backend — if a source shows "failed" in the gear icon's
+  Sources panel, that's usually why. The custom relay field there lets you
+  paste an alternative proxy if you find one that works better on your
+  connection.
+- YouTube artist channels in the Music tab — these never needed a server;
+  YouTube publishes every channel's uploads as an open feed.
 
-```bash
-npm install -g netlify-cli
-cd signal-site
-netlify deploy --prod --dir=. --functions=netlify/functions
-```
+**What's gone:**
+- Spotify sign-in and the "artists you follow / top artists" sections.
+- The reliable own-server RSS relay that Netlify was running — live feeds
+  now depend entirely on the public relays.
 
-### Check it worked
-
-Open `https://YOUR-SITE.netlify.app/.netlify/functions/ping`
-
-You should see JSON like `{"ok":true,"node":"v20...","oauth":false}`.
-A 404 means functions did not deploy and you are still on a drag-and-drop deploy.
-
-## Optional: connect your YouTube account
-
-This lets the Music tab import the channels you already subscribe to instead of
-you pasting them by hand. It is read-only.
-
-1. Go to console.cloud.google.com and create a project.
-2. APIs & Services, Library, search "YouTube Data API v3", Enable.
-3. APIs & Services, OAuth consent screen:
-   - User type: External
-   - Fill in app name and your email
-   - Scopes: add `.../auth/youtube.readonly`
-   - Test users: add your own Google address
-4. APIs & Services, Credentials, Create credentials, OAuth client ID:
-   - Application type: Web application
-   - Authorised redirect URI:
-     `https://YOUR-SITE.netlify.app/.netlify/functions/yt-callback`
-5. Copy the client ID and client secret.
-6. In Netlify: Site configuration, Environment variables, add
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-7. Redeploy, then open the Music tab and press Connect YouTube.
-
-Note: while the Google project stays in Testing mode the sign-in expires after
-seven days. That does not matter much here — you connect once, press "Add all",
-and the channels keep working afterwards as plain feeds with no sign-in at all.
-Reconnect only when you want to re-sync your subscriptions.
+If reliability becomes a real problem, the fix is moving the small backend
+pieces to a host that supports serverless functions on its free tier —
+Vercel or Cloudflare Pages both work well and keep the GitHub-connected,
+auto-deploy workflow. That's a future option, not something this build does.
 
 ## Files
 
 - `index.html` — the whole app
 - `sw.js` — offline cache (app files only; never caches feeds)
 - `manifest.json`, `icon-*.png` — home-screen install
-- `netlify/functions/feed.js` — server-side feed reader
-- `netlify/functions/ping.js` — deployment probe
-- `netlify/functions/yt-*.js` — YouTube sign-in (optional)

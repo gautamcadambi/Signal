@@ -300,7 +300,6 @@
   /* Browsers block cross-site feed reads, so requests go through a public relay.
      Tried in order; the first that answers wins. */
   const RELAYS = [
-    { name:"own server", build:u => "/.netlify/functions/feed?url=" + encodeURIComponent(u) },
     { name:"allorigins", build:u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) },
     { name:"allorigins-j", json:true, build:u => "https://api.allorigins.win/get?url=" + encodeURIComponent(u) },
     { name:"codetabs",   build:u => "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(u) },
@@ -873,8 +872,6 @@
   let feeds = DEFAULT_FEEDS.map(f => ({ ...f, on:true }));
   let liveItems = [], fetchedAt = null, fetching = false;
   let channels = [];        // YouTube artist channels
-  let yt = { checked:false, connected:false, items:[], msg:"" };
-  let sp = { checked:false, connected:false, followed:[], top:[], releases:[], msg:"" };
   let releases = [];        // live uploads from those channels
   const status = {};   // feed id -> {state, n}
 
@@ -1142,76 +1139,17 @@
     if(manual) toast(merged.length ? `Updated — ${merged.length} stories` : "No sources answered");
   }
 
-  /* ---------------- google / youtube account ---------------- */
-  async function ytCheck(){
-    try{
-      const r = await fetch("/.netlify/functions/yt-subs", { cache:"no-store" });
-      if(!r.ok){ yt = { checked:true, connected:false, items:[], msg:"server not available" }; return; }
-      const j = await r.json();
-      yt = { checked:true, connected:!!j.connected, items:j.items || [],
-             msg: j.expired ? "sign-in expired — connect again" : (j.error || "") };
-    }catch(e){ yt = { checked:true, connected:false, items:[], msg:"server not available" }; }
-  }
-  async function ytDisconnect(){
-    try{ await fetch("/.netlify/functions/yt-subs?logout=1", { cache:"no-store" }); }catch(e){}
-    yt = { checked:true, connected:false, items:[], msg:"" };
-    toast("Disconnected");
-    render(true);
-  }
-  function ytImport(only){
-    const list = only ? yt.items.filter(i => i.channelId === only) : yt.items;
-    let added = 0;
-    for(const s of list){
-      const url = "https://www.youtube.com/feeds/videos.xml?channel_id=" + s.channelId;
-      if(channels.some(c => c.url === url)) continue;
-      channels.push({ id:"ch:" + hash(url).toString(36), label:s.title, url, on:true });
-      added++;
-    }
-    ls.set(K.chan, channels);
-    toast(added ? `Added ${added} channel${added===1?"":"s"}` : "Already added");
-    render(true);
-    if(added) refresh(true);
-  }
-
-  async function spCheck(){
-    try{
-      const r = await fetch("/.netlify/functions/sp-data", { cache:"no-store" });
-      if(!r.ok){ sp = { checked:true, connected:false, followed:[], top:[], releases:[], msg:"server not available" }; return; }
-      const j = await r.json();
-      sp = { checked:true, connected:!!j.connected, followed:j.followed || [], top:j.top || [], releases:j.releases || [],
-             msg: j.expired ? "sign-in expired — connect again" : (j.error || "") };
-    }catch(e){ sp = { checked:true, connected:false, followed:[], top:[], releases:[], msg:"server not available" }; }
-  }
-  async function spDisconnect(){
-    try{ await fetch("/.netlify/functions/sp-data?logout=1", { cache:"no-store" }); }catch(e){}
-    sp = { checked:true, connected:false, followed:[], top:[], releases:[], msg:"" };
-    toast("Disconnected");
-    render(true);
-  }
-
   /* ---------------- diagnostics ---------------- */
   let diag = null;
   async function runDiagnostics(){
     diag = { running:true, lines:["Running checks…"] };
     render(true);
     const lines = [];
+    lines.push("no server backend  this is a plain static build — public relays only");
 
-    // 1. is the function layer alive?
-    try{
-      const r = await fetch("/.netlify/functions/ping", { cache:"no-store" });
-      if(r.ok){
-        const j = await r.json();
-        lines.push(`own server      OK  (node ${j.node})`);
-        lines.push(`google oauth    ${j.oauth ? "keys present" : "keys NOT set"}`);
-      } else {
-        lines.push(`own server      HTTP ${r.status}  <- functions did not deploy`);
-      }
-    }catch(e){ lines.push(`own server      unreachable  <- functions did not deploy`); }
-
-    // 2. test every relay against one real feed
+    // test every relay against one real feed
     const probe = "https://www.sciencedaily.com/rss/all.xml";
     for(const relay of relayList()){
-      if(relay.name === "own server") continue;
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 11000);
       const t0 = Date.now();
@@ -1380,8 +1318,6 @@
   }
 
   function musicView(){
-    const followedRel = (sp.releases || []).filter(r => r.source === "followed");
-    const topRel = (sp.releases || []).filter(r => r.source === "top");
     const chRel = releases; // uploads from manually-added YouTube channels
 
     function section(title, list, emptyMsg){
@@ -1392,31 +1328,9 @@
     }
 
     let html = "";
-    html += section("From artists you follow", followedRel,
-      sp.connected ? "Nothing new from these in the last 45 days." : "Connect Spotify below to see this.");
-    html += section("From your top artists", topRel,
-      sp.connected ? "Nothing new from your most-played artists recently." : "Connect Spotify below to see this.");
-    if(chRel.length || channels.length) html += section("From your YouTube channels", chRel,
+    html += section("From your YouTube channels", chRel,
       "Add a channel below and new uploads land here.");
     if(RELEASES.length) html += section("Curated picks", RELEASES, "");
-
-    html += `<div class="day"><h2>Your Spotify account</h2><span class="rule"></span><span class="cnt">${sp.connected ? (sp.followed.length + " followed, " + sp.top.length + " top") : "not connected"}</span></div>
-      <div class="panel" style="--c:var(--music)">
-        ${sp.connected ? `
-          <h4>Connected</h4>
-          <p>Reading ${sp.followed.length} followed artists and your top ${sp.top.length} most-played, refreshed every time you open this tab.</p>
-          <div class="row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <button class="btn primary" id="spRefresh">Refresh now</button>
-            <button class="btn" id="spOut">Disconnect</button>
-          </div>
-        ` : `
-          <h4>Connect your listening</h4>
-          <p>${sp.msg ? esc(sp.msg) + ". " : ""}Sign in with Spotify once and Signal reads your followed and top artists, then surfaces their new releases here — shown as two separate lists above. Read-only: nothing is posted or changed on your account.</p>
-          <div class="row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <a class="btn primary" href="/.netlify/functions/sp-auth">${ICON.play} Connect Spotify</a>
-          </div>
-        `}
-      </div>`;
 
     html += `<div class="day"><h2>Artist channels</h2><span class="rule"></span><span class="cnt">${channels.length}</span></div>
       <div class="panel" style="--c:var(--music)">
@@ -1633,8 +1547,6 @@
     if(e.target.id === "resetFeeds"){ feeds = DEFAULT_FEEDS.map(f => ({ ...f, on:true })); ls.set(K.feeds, feeds); render(true); refresh(true); return; }
     if(e.target.id === "fAdd"){ addFeed(); return; }
     if(e.target.id === "cAdd"){ addChannel(); return; }
-    if(e.target.id === "spRefresh"){ spCheck().then(() => render(true)); return; }
-    if(e.target.id === "spOut"){ spDisconnect(); return; }
     const ctog = e.target.closest("[data-ctog]");
     if(ctog){ const i = +ctog.dataset.ctog; channels[i].on = channels[i].on === false; ls.set(K.chan, channels); render(true); return; }
     const cdel = e.target.closest("[data-cdel]");
@@ -1777,15 +1689,7 @@
   initDb();
   refresh(false);
 
-  if(LIVE_ENABLED){
-    const q = new URLSearchParams(location.search).get("sp");
-    if(q){
-      history.replaceState(null, "", location.pathname);
-      if(q === "ok") tab = "music";
-      else toast("Spotify sign-in failed: " + q);
-    }
-    spCheck().then(() => { if(sp.connected || tab === "music") render(true); });
-  }
+
   if("serviceWorker" in navigator){
     window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
   }
