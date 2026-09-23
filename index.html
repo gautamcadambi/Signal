@@ -21,7 +21,7 @@
   :root{
     color-scheme: light;
     --bg:#FFFFFF; --bg-2:#F6F7F8; --card:#FFFFFF; --card-2:#F1F3F4;
-    --line:#E1E3E6; --line-soft:#ECEEF0;
+    --line:#E1E3E6; --line-soft:#ECEEF0; --card-border:#C6CAD1;
     --tx:#1F1F23; --tx-2:#5F6368; --tx-3:#80868B;
     --brand:#EA4335; --brand-2:#C5221F; --brand-tint:rgba(234,67,53,.10);
     --sports:#E8710A; --tech:#5B5FEF; --science:#12805C; --auto:#D93A4A; --music:#B23F86;
@@ -33,7 +33,7 @@
   [data-theme="dark"]{
     color-scheme: dark;
     --bg:#08080B; --bg-2:#0D0D11; --card:#111116; --card-2:#16161C;
-    --line:#22222B; --line-soft:#1A1A21;
+    --line:#22222B; --line-soft:#1A1A21; --card-border:#2E2E3A;
     --tx:#F2F2F5; --tx-2:#A2A2AE; --tx-3:#6C6C7A;
     --brand:#EA4335; --brand-2:#FF6B5B; --brand-tint:rgba(234,67,53,.16);
     --sports:#FF9A3C; --tech:#8B93FF; --science:#3FD9A4; --auto:#FF5F72; --music:#E879C9;
@@ -50,25 +50,25 @@
   .wrap{position:relative; z-index:1; max-width:620px; margin:0 auto; padding:0 16px 110px}
 
   header.top{position:sticky; top:0; z-index:40; padding-top: env(safe-area-inset-top, 0px);
-    background:linear-gradient(180deg, rgba(8,8,11,.97) 64%, rgba(8,8,11,0));
-    backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px)}
+    background:var(--brand);
+    box-shadow:0 2px 16px rgba(0,0,0,.16)}
   .bar{max-width:620px; margin:0 auto; padding:14px 16px 10px; display:flex; align-items:center; gap:9px}
   .brand{display:flex; align-items:center; gap:9px; margin-right:auto; min-width:0}
-  .brand h1{font-family:'Roboto',Arial,sans-serif; font-weight:900; font-size:25px; letter-spacing:-.01em; margin:0; line-height:1; color:var(--tx)}
-  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--science);box-shadow:0 0 12px var(--science);flex:none}
+  .brand h1{font-family:'Roboto',Arial,sans-serif; font-weight:900; font-size:25px; letter-spacing:-.01em; margin:0; line-height:1; color:#FFFFFF}
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:#3FD9A4;box-shadow:0 0 12px rgba(63,217,164,.7);flex:none}
   .brand .dot.live{animation:pulse 1.6s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-  .stamp{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; color:var(--tx-3); letter-spacing:.05em; text-transform:uppercase; white-space:nowrap}
-  .tabs{display:flex; gap:3px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px}
-  .tab{appearance:none; border:0; background:transparent; color:var(--tx-2); cursor:pointer; font:inherit;
+  .stamp{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; color:rgba(255,255,255,.8); letter-spacing:.05em; text-transform:uppercase; white-space:nowrap}
+  .tabs{display:flex; gap:3px; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28); border-radius:999px; padding:3px}
+  .tab{appearance:none; border:0; background:transparent; color:rgba(255,255,255,.82); cursor:pointer; font:inherit;
     font-size:12.5px; font-weight:600; padding:6px 12px; border-radius:999px;
     display:flex; align-items:center; gap:5px; transition:.18s; white-space:nowrap}
-  .tab[aria-selected="true"]{background:var(--brand); color:#FFFFFF}
+  .tab[aria-selected="true"]{background:#FFFFFF; color:var(--brand)}
   .tab .n{font-family:'JetBrains Mono',monospace; font-size:10px; opacity:.72}
-  .gear{appearance:none; border:1px solid var(--line); background:var(--card); color:var(--tx-2);
+  .gear{appearance:none; border:1px solid rgba(0,0,0,.08); background:#FFFFFF; color:#5F6368;
     width:34px; height:34px; border-radius:50%; display:grid; place-items:center; cursor:pointer; flex:none; transition:.18s}
-  .gear:hover{color:var(--tx); border-color:#32323E}
-  .gear[aria-selected="true"]{background:var(--brand); color:#FFFFFF; border-color:var(--brand)}
+  .gear:hover{color:var(--brand)}
+  .gear[aria-selected="true"]{background:var(--brand-2); color:#FFFFFF; border-color:var(--brand-2)}
   .gear svg{width:16px;height:16px}
 
   .chips{display:flex; gap:7px; overflow-x:auto; padding:2px 16px 12px; max-width:620px; margin:0 auto; scrollbar-width:none}
@@ -87,8 +87,8 @@
   .day .rule{height:1px; background:linear-gradient(90deg,var(--line),transparent); flex:1}
   .day .cnt{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--tx-3)}
 
-  .card{background:var(--card); border:1px solid var(--line-soft); border-radius:22px; overflow:hidden; margin-bottom:16px; position:relative; transition:border-color .2s}
-  .card:hover{border-color:var(--line)}
+  .card{background:var(--card); border:2px solid var(--card-border); border-radius:22px; overflow:hidden; margin-bottom:16px; position:relative; transition:border-color .2s}
+  .card:hover{border-color:color-mix(in srgb, var(--card-border) 65%, black)}
   .card.saved{border-color:color-mix(in srgb, var(--c) 42%, var(--line-soft))}
 
   .cover{position:relative; aspect-ratio:16/9; overflow:hidden; cursor:pointer; background:#0C0C10}
@@ -98,13 +98,14 @@
   .cover .veil{position:absolute; inset:0; background:linear-gradient(180deg, rgba(8,8,11,.05) 0%, rgba(8,8,11,.42) 58%, rgba(8,8,11,.88) 100%)}
   .cover.photo .veil{background:linear-gradient(180deg, rgba(8,8,11,.18) 0%, rgba(8,8,11,.5) 55%, rgba(8,8,11,.92) 100%)}
   .cover .meta{position:absolute; top:14px; left:15px; right:15px; display:flex; align-items:center; gap:8px; z-index:2}
-  .src{display:inline-flex; align-items:center; gap:7px; font-size:11px; font-weight:600; padding:5px 10px 5px 8px; border-radius:999px; background:rgba(8,8,11,.62); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); color:var(--tx); max-width:62%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .src{display:inline-flex; align-items:center; gap:7px; font-size:11px; font-weight:600; padding:5px 10px 5px 8px; border-radius:999px; background:var(--brand); border:1px solid rgba(255,255,255,.25); color:#FFFFFF; max-width:62%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  [data-theme="dark"] .src{background:rgba(8,8,11,.62); border:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px); color:#FFFFFF}
   .src .sw{width:6px;height:6px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);flex:none}
   .kind{margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--c); padding:4px 9px; border-radius:6px; background:color-mix(in srgb, var(--c) 16%, rgba(8,8,11,.58)); border:1px solid color-mix(in srgb, var(--c) 32%, transparent); white-space:nowrap}
   .hero{position:absolute; left:16px; right:16px; bottom:13px; z-index:2}
-  .hero .big{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:clamp(28px,7.8vw,40px); line-height:.96; letter-spacing:-.02em; text-shadow:0 3px 26px rgba(0,0,0,.72)}
+  .hero .big{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:clamp(28px,7.8vw,40px); line-height:.96; letter-spacing:-.02em; text-shadow:0 3px 26px rgba(0,0,0,.72); color:#FFFFFF}
   .hero .big em{font-style:normal; color:var(--c)}
-  .hero .lab{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--tx-2); margin-top:6px; text-shadow:0 2px 12px rgba(0,0,0,.7)}
+  .hero .lab{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.82); margin-top:6px; text-shadow:0 2px 12px rgba(0,0,0,.7)}
 
   .body{padding:15px 17px 14px}
   .title{font-size:17.5px; font-weight:650; line-height:1.32; letter-spacing:-.012em; margin:0 0 7px}
@@ -132,10 +133,10 @@
   .btn.primary:hover{background:var(--brand-2); border-color:var(--brand-2); color:#FFFFFF}
 
   .theme-toggle{
-    appearance:none; border:1px solid var(--line); background:var(--card); color:var(--tx-2);
+    appearance:none; border:1px solid rgba(0,0,0,.08); background:#FFFFFF; color:#5F6368;
     width:34px; height:34px; border-radius:50%; display:grid; place-items:center; cursor:pointer; flex:none; transition:.18s;
   }
-  .theme-toggle:hover{color:var(--tx); border-color:#8886}
+  .theme-toggle:hover{color:var(--brand)}
   .theme-toggle svg{width:16px;height:16px}
   .theme-toggle .sun{display:none}
   [data-theme="dark"] .theme-toggle .moon{display:none}
@@ -143,7 +144,7 @@
 
   .arch{font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--tx-3); border:1px dashed var(--line); padding:4px 9px; border-radius:7px; margin-right:auto}
 
-  .mcard{display:flex; gap:14px; align-items:center; background:var(--card); border:1px solid var(--line-soft); border-radius:18px; padding:12px; margin-bottom:11px; transition:border-color .2s}
+  .mcard{display:flex; gap:14px; align-items:center; background:var(--card); border:2px solid var(--card-border); border-radius:18px; padding:12px; margin-bottom:11px; transition:border-color .2s}
   .mcard:hover{border-color:var(--line)}
   .mart{width:82px; height:82px; border-radius:13px; overflow:hidden; flex:none; position:relative; background:#0C0C10}
   .mart svg{width:100%; height:100%; display:block}
@@ -1000,9 +1001,20 @@
       let img = "";
       for(const kid of n.children) if(kid.localName === "group"){ img = attrOf(kid, "thumbnail", "url"); break; }
       out.push({ id:"yt:" + hash(link || title).toString(36), artist:name, title,
-                 type:"YouTube", date:new Date(t).toISOString(), url:link || "#", img, live:true });
+                 type:"YouTube", date:clampToNow(new Date(t).toISOString()), url:link || "#", img, live:true });
     }
     return { name, items: out.slice(0, 6) };
+  }
+
+  /* Sources occasionally publish a story timestamped a few minutes ahead of
+     real time — wire-service scheduling, clock drift on their end, embargoed
+     releases. Never show a story as having happened in the future relative
+     to the reader's own clock; clamp it to "now" instead, with a little
+     slack for ordinary clock skew between the reader's device and the source. */
+  function clampToNow(iso){
+    const t = new Date(iso).getTime();
+    const now = Date.now();
+    return t > now + 90000 ? new Date(now).toISOString() : iso;
   }
 
   function parseFeed(xml, feed){
@@ -1024,7 +1036,7 @@
       const num = heroNumber(title);
       out.push({
         id: "live:" + hash(link || title).toString(36),
-        ts: new Date(t).toISOString(),
+        ts: clampToNow(new Date(t).toISOString()),
         cat: feed.cat, kind: "Latest", source: feed.label,
         title, dek: dek || "", detail: "", facts: [],
         url: link || "#", img: imgFrom(n, rawSum),
