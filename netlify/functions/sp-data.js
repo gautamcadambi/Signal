@@ -1,11 +1,19 @@
 /* Step 3: read followed + top artists, then each artist's newest releases.
-   Nothing is stored server-side — the result goes straight to the browser. */
+   Nothing is stored server-side — the result goes straight to the browser.
+   Hardened against partial failure: one bad Spotify call must never take
+   down the whole response, and the whole handler respects a time budget
+   well under Netlify's function timeout. */
 const { cookies } = require("./_shared");
 const J = (code, obj) => ({
   statusCode: code,
   headers: { "content-type": "application/json", "cache-control": "no-store" },
   body: JSON.stringify(obj)
 });
+
+const BUDGET_MS = 8000;   // stay well under Netlify's ~10s function limit
+const CALL_TIMEOUT_MS = 4500;
+const started = Date.now();
+const timeLeft = () => BUDGET_MS - (Date.now() - started);
 
 async function refreshToken(rt) {
   const basic = Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString("base64");
@@ -17,14 +25,22 @@ async function refreshToken(rt) {
   return r.json();
 }
 async function spGet(url, token) {
-  const r = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
-  if (!r.ok) return null;
-  return r.json();
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), Math.max(1000, Math.min(CALL_TIMEOUT_MS, timeLeft())));
+  try {
+    const r = await fetch(url, { headers: { authorization: `Bearer ${token}` }, signal: ctl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return null;          // one bad call returns nothing, never throws
+    return await r.json();
+  } catch (e) {
+    clearTimeout(timer);
+    return null;                     // network error, abort, whatever — never propagates
+  }
 }
 async function fetchAllFollowed(token) {
   const out = [];
   let after = "";
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2 && timeLeft() > 1500; i++) {
     const u = "https://api.spotify.com/v1/me/following?type=artist&limit=50" + (after ? `&after=${after}` : "");
     const j = await spGet(u, token);
     if (!j || !j.artists) break;
@@ -66,7 +82,8 @@ function recent(items, days) {
 async function batched(list, fn, size) {
   const out = [];
   for (let i = 0; i < list.length; i += size) {
-    out.push(...(await Promise.all(list.slice(i, i + size).map(fn))).flat());
+    if (timeLeft() < 1200) break;   // stop launching new work once the budget is nearly gone
+    out.push(...(await Promise.all(list.slice(i, i + size).map(a => fn(a).catch(() => [])))).flat());
   }
   return out;
 }
@@ -85,13 +102,16 @@ exports.handler = async (event) => {
     const tok = await refreshToken(rt);
     if (!tok.access_token) return J(200, { connected: false, expired: true, detail: tok.error || "token refused" });
 
-    const [followed, top] = await Promise.all([ fetchAllFollowed(tok.access_token), fetchTop(tok.access_token) ]);
-    const followedCap = followed.slice(0, 15);
-    const topCap = top.slice(0, 15);
+    const [followed, top] = await Promise.all([
+      fetchAllFollowed(tok.access_token).catch(() => []),
+      fetchTop(tok.access_token).catch(() => [])
+    ]);
+    const followedCap = followed.slice(0, 10);
+    const topCap = top.slice(0, 10);
 
     const [followedReleasesRaw, topReleasesRaw] = await Promise.all([
-      batched(followedCap, a => releasesFor(a, tok.access_token, "followed"), 6),
-      batched(topCap, a => releasesFor(a, tok.access_token, "top"), 6)
+      batched(followedCap, a => releasesFor(a, tok.access_token, "followed"), 8),
+      batched(topCap, a => releasesFor(a, tok.access_token, "top"), 8)
     ]);
 
     const followedReleases = recent(followedReleasesRaw, 45).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 25);
@@ -101,9 +121,10 @@ exports.handler = async (event) => {
       connected: true,
       followed: followed.map(a => ({ id: a.id, name: a.name, image: a.image })),
       top: top.map(a => ({ id: a.id, name: a.name, image: a.image })),
-      releases: [...followedReleases, ...topReleases]
+      releases: [...followedReleases, ...topReleases],
+      partial: timeLeft() < 500 || undefined
     });
   } catch (e) {
-    return J(500, { error: String(e) });
+    return J(500, { error: String(e && e.message || e) });
   }
 };
